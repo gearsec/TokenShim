@@ -2,39 +2,31 @@
 
 **Don't give AI agents keys, use a Shim.**
 
-A local-first mechanical separation layer that keeps real API credentials out of AI agent environments. The agent sees a masked token. Shim intercepts outbound requests and injects the real secret at the point of transmission — never before, never after.
+Shim is a local proxy that keeps real API credentials out of AI agent processes. The agent is given a masked token and a local proxy address. When it makes an API call, Shim swaps the token for the real credential in-flight and forwards the request. The real key never touches the agent's environment.
 
 ---
 
 ## How It Works
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Your Machine                             │
-│                                                                 │
-│   ┌──────────────┐    masked     ┌──────────────┐              │
-│   │              │   token only  │              │              │
-│   │  AI Agent    │ ────────────► │     SHIM     │              │
-│   │              │               │   (proxy)    │              │
-│   │  OPENAI_KEY= │               │              │              │
-│   │  sk-shim-*** │               │  injects real│              │
-│   └──────────────┘               │  credential  │              │
-│                                  └──────┬───────┘              │
-│                                         │ real token           │
-│                                         │ (TLS only)           │
-│                                         ▼                      │
-│                                  ┌──────────────┐              │
-│                                  │  API Service  │              │
-│                                  │  (OpenAI,    │              │
-│                                  │   Anthropic, │              │
-│                                  │   etc.)      │              │
-│                                  └──────────────┘              │
-│                                                                 │
-│  Real credentials never enter the agent's process environment.  │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────┐          ┌──────────────────┐
+│    AI Agent      │  masked  │                  │
+│                  │─────────►│       SHIM       │
+│  OPENAI_KEY=     │  token   │     (proxy)      │
+│  sk-shim-***     │          │                  │
+└──────────────────┘          └────────┬─────────┘
+                                       │
+                               real key injected
+                               on tool calls only
+                                       │
+                                       ▼
+                              ┌──────────────────┐
+                              │   API Service    │
+                              │  OpenAI, etc.    │
+                              └──────────────────┘
 ```
 
-The Shim sits between the agent process and the upstream service. It exposes a local HTTP/HTTPS proxy. The agent is given a masked, non-functional token (`sk-shim-<id>`). When the agent makes an API call through the Shim, the Shim swaps the masked token for the real credential in-flight, over a local loopback connection — the real key never appears in environment variables, logs, or the agent's memory space.
+Shim runs a local HTTP proxy on loopback. The agent starts with a masked, non-functional token (`sk-shim-<id>`) and routes outbound requests through that proxy. The real credential is only injected at the point of a tool call to an external service - it is never added to the prompt or message payload sent to the LLM. Prompt contents are logged, cached, and visible to the model. The real key stays out of all of that.
 
 ---
 
@@ -46,7 +38,7 @@ The Shim sits between the agent process and the upstream service. It exposes a l
 # Store your real key once
 shim secrets set OPENAI_API_KEY sk-real-...
 
-# Run your agent — it receives a masked token and a local proxy address
+# Run your agent - it receives a masked token and a local proxy address
 shim exec -- python agent.py
 
 # Inside agent.py, the environment looks like:
@@ -128,10 +120,10 @@ shim/
 ## Design Principles
 
 - **Local-first.** No cloud component, no telemetry, no account required. All secrets stay on your machine.
-- **Mechanical separation.** The agent process cannot access real credentials by design — not by policy.
+- **Process separation.** The agent process cannot access real credentials by design.
 - **Minimal surface area.** Shim does one thing: intercept, swap, forward. No features that expand the trust boundary.
 - **Auditable.** The proxy access log gives you a complete record of what the agent called and when.
-- **No plaintext at rest.** Secrets are stored in the OS keyring (Keychain on macOS, Secret Service on Linux, Windows Credential Manager on Windows) — never written to disk by Shim.
+- **No plaintext at rest.** Secrets are stored in the OS keyring (Keychain on macOS, Secret Service on Linux, Windows Credential Manager on Windows) - never written to disk by Shim.
 
 ---
 
@@ -152,7 +144,7 @@ Adding a new service shim requires implementing a small interface. See [CONTRIBU
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
 
 ---
 
