@@ -1,0 +1,53 @@
+scan_paths:
+  # ── Shell init files ────────────────────────────────────────────────────────
+  - "~/.env"
+  - "~/.bashrc"
+  - "~/.zshrc"
+  - "~/.bash_profile"
+  - "~/.profile"
+  - "~/.config/fish/config.fish"
+
+  # ── Dotenv files (current working directory and subdirectories) ─────────────
+  # Catches: .env, .env.local, .env.example, .env.production, .env.staging, etc.
+  - "**/.env*"
+  # Catches: env.example, env.local, env.production (no leading dot variant)
+  - "**/env.*"
+  # Catches: app.env, prod.env, secrets.env, etc.
+  - "**/*.env"
+
+  # ── AWS ─────────────────────────────────────────────────────────────────────
+  # Long-term credentials (access key ID + secret)
+  - "~/.aws/credentials"
+  # CLI config (may contain role ARNs, SSO start URLs, region)
+  - "~/.aws/config"
+  # Uncomment for deeper inspection of short-lived SSO and assumed-role session tokens:
+  # - "~/.aws/sso/cache/*.json"
+  # - "~/.aws/cli/cache/*.json"
+
+  # ── GCP ─────────────────────────────────────────────────────────────────────
+  # Application Default Credentials written by `gcloud auth application-default login`
+  - "~/.config/gcloud/application_default_credentials.json"
+  # Per-account OAuth tokens written by `gcloud auth login`
+  - "~/.config/gcloud/legacy_credentials/*/adc.json"
+  - "~/.config/gcloud/legacy_credentials/*/.boto"
+  # gcloud CLI properties (may contain project IDs, quota projects)
+  - "~/.config/gcloud/properties"
+
+  # ── Azure ────────────────────────────────────────────────────────────────────
+  # Legacy Azure CLI access tokens (az CLI < 2.30)
+  - "~/.azure/accessTokens.json"
+  # MSAL token cache written by az CLI >= 2.30
+  - "~/.azure/msal_token_cache.json"
+  # Service principal credentials stored by `az login --service-principal`
+  - "~/.azure/service_principal_entries.json"
+  # Azure profile (subscription IDs, tenant IDs)
+  - "~/.azure/azureProfile.json"
+
+  # ── Claude / Anthropic ───────────────────────────────────────────────────────
+  # Claude Code settings (may contain API keys set via /config)
+  - "~/.claude/settings.json"
+  # Claude Code local project settings
+  - ".claude/settings.local.json"
+  # Generic Anthropic credential files
+  - "~/.config/anthropic/credentials"
+  - "~/.anthropic"

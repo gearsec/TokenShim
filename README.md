@@ -1,12 +1,66 @@
-# Shim
+# TokenShim
 
 **Don't give AI agents keys, use a Shim.**
 
-Shim is a local proxy that keeps real API credentials out of AI agent processes. The agent is given a masked token and a local proxy address. When it makes an API call, Shim swaps the token for the real credential in-flight and forwards the request. The real key never touches the agent's environment.
+TokenShim is a local security tool for managing and auditing API credentials in AI agent environments. It has two core capabilities:
+
+| Feature | Status |
+|---------|--------|
+| **Doctor** — scan files and env vars for exposed secrets | ✅ Active |
+| **Token proxy** — intercept and swap masked tokens in-flight | 🚧 In progress |
 
 ---
 
-## How It Works
+## Doctor Mode
+
+Doctor scans your local machine for exposed API keys and secrets across files and environment variables, and produces an exportable report.
+
+```sh
+# Run all checks (files + environment)
+tokenshim doctor check
+
+# Scan only environment variables
+tokenshim doctor check --env
+
+# Scan only files
+tokenshim doctor check --files
+
+# Use a custom config (supports wildcards: **/.env*, **/env.*, **/*.env)
+tokenshim doctor check --config /path/to/doctor.yaml
+
+# Export as HTML
+tokenshim doctor check --output html --export report.html
+
+# Supported formats: json (default), yaml, xml, csv, html
+tokenshim doctor check --output yaml --export report.yaml
+```
+
+Doctor reads `~/.config/tokenshim/doctor.yaml` for the list of files to scan. If the config does not exist, built-in defaults are used. All secret values are **redacted** in reports (`sk-ab****xyz`).
+
+**Default scan paths:**
+
+```yaml
+scan_paths:
+  - "~/.env"
+  - "~/.bashrc"
+  - "~/.zshrc"
+  - "~/.bash_profile"
+  - "~/.profile"
+  - "~/.config/fish/config.fish"
+  - ".env"
+  - ".env.local"
+  - ".env.development"
+  - ".env.production"
+  - ".env.staging"
+```
+
+**Detected secret types:** OpenAI, Anthropic, AWS (Key ID + Secret), GitHub, Stripe, HuggingFace, Google API Key, Slack, Twilio, and generic high-entropy API secrets.
+
+---
+
+## Token Proxy *(in progress)*
+
+The proxy mode keeps real API credentials out of AI agent processes entirely. The agent is given a masked token and a local proxy address. When it makes an API call, Shim swaps the token for the real credential in-flight and forwards the request. The real key never touches the agent's environment.
 
 ```
 ┌──────────────────┐          ┌──────────────────┐
@@ -26,68 +80,25 @@ Shim is a local proxy that keeps real API credentials out of AI agent processes.
                               └──────────────────┘
 ```
 
-Shim runs a local HTTP proxy on loopback. The agent starts with a masked, non-functional token (`sk-shim-<id>`) and routes outbound requests through that proxy. The real credential is only injected at the point of a tool call to an external service - it is never added to the prompt or message payload sent to the LLM. Prompt contents are logged, cached, and visible to the model. The real key stays out of all of that.
+Once complete, the proxy will support:
 
----
-
-## Usage
-
-### Basic: wrap any command with shim exec
-
-```sh
-# Store your real key once
-shim secrets set OPENAI_API_KEY sk-real-...
-
-# Run your agent - it receives a masked token and a local proxy address
-shim exec -- python agent.py
-
-# Inside agent.py, the environment looks like:
-# OPENAI_API_KEY=sk-shim-a1b2c3d4
-# OPENAI_BASE_URL=http://127.0.0.1:8742/openai
-# Shim handles injection transparently
-```
-
-### Named profiles
-
-```sh
-# Create a profile for a specific agent workload
-shim profile create research --service openai --service anthropic
-
-# Execute with a named profile
-shim exec --profile research -- claude-agent --task "summarize docs"
-```
-
-### Inspect what the agent sees
-
-```sh
-# Print the masked environment that will be injected
-shim exec --dry-run -- python agent.py
-```
-
-### Audit log
-
-```sh
-# View all requests proxied in the last session
-shim log show --session latest
-
-# Shim logs: timestamp, masked token used, target host, HTTP method, status
-# Shim does NOT log request/response bodies
-```
+| Service       | Status   |
+|---------------|----------|
+| OpenAI        | Planned  |
+| Anthropic     | Planned  |
+| Cohere        | Planned  |
+| Mistral       | Planned  |
+| AWS Bedrock   | Planned  |
+| Google Vertex | Planned  |
 
 ---
 
 ## Installation
 
 ```sh
-# Homebrew (macOS/Linux)
-brew install gearsec/tap/shim
-
-# Go install
-go install github.com/gearsec/shim/cmd/shim@latest
-
 # From source
-git clone https://github.com/gearsec/shim.git
-cd shim
+git clone https://github.com/gearsec/tokenshim.git
+cd tokenshim
 make build
 ```
 
@@ -96,17 +107,31 @@ make build
 ## Directory Structure
 
 ```
-shim/
+tokenshim/
 ├── cmd/
-│   └── shim/           # CLI entrypoint
+│   └── tokenshim/      # CLI entrypoint
 │       └── main.go
-├── pkg/
-│   ├── proxy/          # Local HTTP/HTTPS proxy engine
-│   ├── masking/        # Token masking and alias generation
-│   └── config/         # Profile and secrets configuration
 ├── internal/
-│   ├── injection/      # In-flight credential injection
+│   ├── cli/            # Cobra command definitions
+│   │   ├── root.go
+│   │   ├── exec.go
+│   │   ├── secrets.go
+│   │   ├── profile.go
+│   │   ├── log.go
+│   │   └── doctor.go   # doctor / doctor check commands
+│   ├── config/         # Shared config manager (viper-backed)
+│   │   ├── item.go
+│   │   └── manager.go
+│   ├── doctor/         # Secret detection engine
+│   │   ├── patterns.go # Compiled regex patterns (OpenAI, AWS, GitHub, etc.)
+│   │   ├── config.go   # doctor.yaml loading and path resolution
+│   │   ├── scanner.go  # File and environment variable scanning
+│   │   └── report.go   # Multi-format report serialization (JSON/YAML/XML/CSV/HTML)
+│   ├── injection/      # In-flight credential injection (in progress)
 │   └── keyring/        # OS keyring integration (Keychain, Secret Service, WCM)
+├── pkg/
+│   ├── proxy/          # Local HTTP/HTTPS proxy engine (in progress)
+│   └── masking/        # Token masking and alias generation (in progress)
 ├── .github/
 │   ├── workflows/
 │   └── ISSUE_TEMPLATE/
@@ -120,31 +145,15 @@ shim/
 ## Design Principles
 
 - **Local-first.** No cloud component, no telemetry, no account required. All secrets stay on your machine.
-- **Process separation.** The agent process cannot access real credentials by design.
-- **Minimal surface area.** Shim does one thing: intercept, swap, forward. No features that expand the trust boundary.
-- **Auditable.** The proxy access log gives you a complete record of what the agent called and when.
-- **No plaintext at rest.** Secrets are stored in the OS keyring (Keychain on macOS, Secret Service on Linux, Windows Credential Manager on Windows) - never written to disk by Shim.
-
----
-
-## Supported Services
-
-| Service    | Status |
-|------------|--------|
-| OpenAI     | Stable |
-| Anthropic  | Stable |
-| Cohere     | Beta   |
-| Mistral    | Beta   |
-| AWS Bedrock | Planned |
-| Google Vertex | Planned |
-
-Adding a new service shim requires implementing a small interface. See [CONTRIBUTING.md](CONTRIBUTING.md).
+- **No plaintext at rest.** Secrets are stored in the OS keyring (Keychain on macOS, Secret Service on Linux, Windows Credential Manager on Windows) — never written to disk.
+- **Auditable.** Every scan produces a full report of what was checked and what was found.
+- **Minimal surface area.** No features that expand the trust boundary beyond what is necessary.
 
 ---
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
 
 ---
 
