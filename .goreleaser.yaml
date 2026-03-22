@@ -1,0 +1,94 @@
+version: 2
+
+project_name: tokenshim
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: tokenshim
+    main: ./cmd/tokenshim
+    binary: tokenshim
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: tokenshim
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - local.config.yaml
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "merge conflict"
+      - Merge pull request
+      - Merge remote-tracking branch
+  groups:
+    - title: "New Features"
+      regexp: "^feat"
+      order: 0
+    - title: "Bug Fixes"
+      regexp: "^fix"
+      order: 1
+    - title: "Security"
+      regexp: "^sec"
+      order: 2
+    - title: "Other"
+      order: 999
+
+release:
+  github:
+    owner: gearsec
+    name: TokenShim
+  name_template: "v{{ .Version }}"
+  draft: false
+  prerelease: auto
+  footer: |
+    ## Verify your download
+
+    ```sh
+    sha256sum --check checksums.txt
+    ```
+
+brews:
+  - name: tokenshim
+    repository:
+      owner: gearsec
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/gearsec/TokenShim"
+    description: "Scan for exposed API keys and secrets across files and environment variables"
+    license: "MIT"
+    test: |
+      system "#{bin}/tokenshim", "--help"
