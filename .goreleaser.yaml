@@ -81,8 +81,9 @@ release:
     sha256sum --check checksums.txt
     ```
 
-brews:
+homebrew_casks:
   - name: tokenshim
+    directory: Casks
     repository:
       owner: gearsec
       name: homebrew-tap
@@ -90,5 +91,11 @@ brews:
     homepage: "https://github.com/gearsec/TokenShim"
     description: "Scan for exposed API keys and secrets across files and environment variables"
     license: "MIT"
-    test: |
-      system "#{bin}/tokenshim", "--help"
+    url:
+      verified: github.com/gearsec/TokenShim
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tokenshim"]
+          end
