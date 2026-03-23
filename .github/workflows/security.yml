@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
+  issues: write
   security-events: write
 
 jobs:
@@ -28,13 +30,20 @@ jobs:
           cache: true
 
       - name: Run SafeDep vet
+        id: vet
         uses: safedep/vet-action@v1
         with:
-          # Fail the build if any critical or high-severity issues are found
-          # in direct or transitive dependencies
+          policy: .github/vet/policy.yml
           fail-on-violation: true
         env:
-          SAFEDEP_API_KEY: ${{ secrets.SAFEDEP_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.vet.outputs.report }}
+          category: vet
 
   gosec:
     name: gosec Static Analysis
