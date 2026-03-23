@@ -1,70 +1,64 @@
-# Contributing to Shim
+# Contributing to TokenShim
 
 ## What Belongs Here
 
-Shim has a narrow scope by design. Contributions that expand the core separation guarantee — broader service support, tighter injection logic, better keyring integration — are welcome. Contributions that add features outside that scope (telemetry, cloud sync, AI model management) will be declined.
+TokenShim has a narrow scope by design: local credential auditing and (in progress) agent-safe token proxying. Contributions that strengthen secret detection, improve report quality, or extend proxy support are welcome. Contributions outside that scope will be declined.
 
-Before starting significant work, open an issue to describe what you intend to build and why. This avoids wasted effort on contributions that don't fit the project's direction.
+Before starting significant work, open an issue to describe what you intend to build and why.
 
 ---
 
-## Adding a New Service Shim
+## Adding a New Secret Pattern
 
-The most common contribution is adding proxy support for a new AI service. Each service shim must implement the `ServiceShim` interface in `pkg/proxy`:
+The most common contribution is adding detection support for a new credential type. Patterns live in `internal/doctor/patterns.go`.
 
-```go
-type ServiceShim interface {
-    // Name returns the canonical identifier for this service (e.g., "openai").
-    Name() string
+Requirements for a new pattern to be merged:
 
-    // InjectCredential replaces the masked token in the outbound request
-    // with the real credential. It must not log or store the real credential.
-    InjectCredential(req *http.Request, real string) error
-
-    // BaseURL returns the upstream host this shim forwards to.
-    BaseURL() *url.URL
-}
-```
-
-Requirements for a service shim to be merged:
-
-- Handles credential injection entirely in `InjectCredential` — no credential handling in any other method
-- Includes unit tests that verify the masked token is absent from the forwarded request
-- Includes a test fixture that confirms the real credential does not appear in logs
-- Documents the exact header or field where the credential is injected
-- Has no external dependencies beyond the Go standard library unless unavoidable
+- Regex must match real credentials issued by the service (provide a sample format, not a real key)
+- Must not produce false positives on common non-secret strings
+- Includes a unit test with both a matching and a non-matching case
+- Secret value must be redacted in all report formats — verify with `tokenshim doctor check --output json`
+- Pattern name follows the existing naming convention (e.g. `OpenAI`, `AWSKeyID`, `GitHub`)
 
 ---
 
 ## Development Setup
 
 ```sh
-git clone https://github.com/gearsec/shim.git
-cd shim
+git clone https://github.com/gearsec/TokenShim.git
+cd TokenShim
 go mod download
-make test
+go test ./...
 ```
 
-### Makefile targets
+### Useful commands
 
-| Target | Description |
-|--------|-------------|
-| `make build` | Compile the `shim` binary |
-| `make test` | Run unit and integration tests |
-| `make lint` | Run golangci-lint |
-| `make vet` | Run go vet |
-| `make security` | Run gosec static analysis |
+```sh
+# Run all tests
+go test ./...
+
+# Run with race detector
+go test -race ./...
+
+# Lint
+golangci-lint run
+
+# Vet
+go vet ./...
+
+# Build
+go build -o tokenshim ./cmd/tokenshim
+```
 
 ---
 
 ## Code Standards
 
-- All credential-handling code must be in `internal/injection` or `internal/keyring`. Nothing outside those packages should ever hold a real credential value.
+- All credential-handling code must stay in `internal/doctor` or `internal/keyring`. Nothing outside those packages should hold a real credential value.
 - No global state.
-- No `init()` functions that touch secrets or configuration.
 - Errors must be returned, not swallowed. Use `fmt.Errorf("context: %w", err)`.
-- No external logging frameworks. Use the stdlib `log/slog`.
-- Tests must not make real outbound network calls. Use `httptest.NewServer` for service fixtures.
+- No external logging frameworks — use stdlib `log/slog`.
+- Tests must not make real outbound network calls.
 
 ---
 
@@ -72,17 +66,15 @@ make test
 
 1. Fork the repository and create a branch from `main`.
 2. Make your changes. Keep commits focused — one logical change per commit.
-3. Run `make test lint vet security` locally. All must pass.
+3. Run `go test -race ./...` and `go vet ./...` locally. Both must pass.
 4. Open a pull request with a description of what changed and why.
-5. A maintainer will review within 5 business days. Address feedback and push to the same branch.
-
-Pull requests that modify injection logic or keyring integration require review from at least one maintainer before merge.
+5. A maintainer will review within 5 business days.
 
 ---
 
 ## Security-Sensitive Changes
 
-If your contribution touches credential injection, keyring access, or the subprocess environment construction in `shim exec`, note this explicitly in the PR description. These areas receive heightened review. Do not rush them.
+If your contribution touches secret pattern matching, report redaction, or keyring integration, note this explicitly in the PR description. These areas receive heightened review.
 
 If you discover a security issue while contributing, follow the process in [SECURITY.md](SECURITY.md) rather than including the fix in a normal PR.
 

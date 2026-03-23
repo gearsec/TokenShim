@@ -2,21 +2,22 @@
 
 ## Scope
 
-Shim is a local credential separation layer. Its security guarantee is narrow and specific: **real API credentials must never appear in the environment, memory space, or logs of the agent process it wraps.** All vulnerability reports are evaluated against this guarantee first.
+TokenShim is a local security tool for managing and auditing API credentials in AI agent environments. Its security guarantee is specific: **real API credentials must never be exposed in files, environment variables, or agent processes.** All vulnerability reports are evaluated against this guarantee first.
 
 ### In scope
 
-- Credential leak from the Shim proxy to the agent process (environment, stdin/stdout, IPC)
-- Masked token bypass — any path by which an agent could use a masked token to recover the real credential
-- OS keyring exposure — secrets readable by unintended processes due to misconfigured keyring access controls
-- Injection logic flaws — cases where the real credential is forwarded to an unintended host
-- TLS downgrade or MITM conditions on the loopback proxy interface
-- Privilege escalation via the `shim exec` subprocess model
+- Secret detection bypass — patterns that fail to detect exposed credentials
+- False negatives in the doctor scanner (missed secrets across supported types)
+- Credential exposure introduced by TokenShim itself during scanning or reporting
+- Report output leaking unredacted secret values
+- OS keyring exposure — secrets readable by unintended processes
+- Future proxy/injection logic flaws — cases where real credentials are forwarded to unintended hosts
+- TLS downgrade or MITM conditions on the loopback proxy interface (when implemented)
 - Dependency-level supply chain compromises affecting credential handling
 
 ### Out of scope
 
-- Attacks requiring root/kernel-level access to the host machine (outside the threat model)
+- Attacks requiring root/kernel-level access to the host machine
 - Social engineering or physical access scenarios
 - Issues in upstream AI services (OpenAI, Anthropic, etc.) — report those to the respective vendor
 - Theoretical vulnerabilities without a working proof-of-concept
@@ -25,13 +26,12 @@ Shim is a local credential separation layer. Its security guarantee is narrow an
 
 ## Execution Model
 
-Shim runs entirely on the local machine. It has no cloud component, makes no outbound connections to GearSec infrastructure, and collects no telemetry. The attack surface is limited to:
+TokenShim runs entirely on the local machine. It has no cloud component, makes no outbound connections to GearSec infrastructure, and collects no telemetry. The attack surface is limited to:
 
-1. The loopback proxy (`127.0.0.1`, configurable port)
-2. The OS keyring (Keychain on macOS, Secret Service on Linux, Windows Credential Manager on Windows)
-3. The subprocess environment constructed by `shim exec`
-
-There is no Shim server, relay, or SaaS endpoint that handles credentials.
+1. Files and environment variables being scanned by doctor mode
+2. Report output (all secret values are redacted as `sk-ab****xyz`)
+3. The OS keyring (Keychain on macOS, Secret Service on Linux, Windows Credential Manager on Windows)
+4. The loopback proxy interface (in progress)
 
 ---
 
@@ -43,7 +43,7 @@ Send a report to: **security@gearsec.io**
 
 Include:
 - A clear description of the vulnerability and the affected component
-- The version of Shim and OS/architecture where you reproduced it
+- The version of TokenShim and OS/architecture where you reproduced it
 - Step-by-step reproduction instructions
 - A proof-of-concept demonstrating credential exposure, if applicable
 - Your assessment of severity and exploitability
@@ -65,16 +65,16 @@ We follow coordinated disclosure. We will not take legal action against research
 
 | Severity | Definition |
 |----------|------------|
-| Critical | Real credential exposed to agent process or extracted from the OS keyring by an unintended process |
-| High | Masked token can be used to reconstruct or exchange for real credential |
-| Medium | Keyring access or proxy accessible beyond intended scope without additional privileges |
-| Low | Information disclosure that does not directly expose credentials |
+| Critical | Unredacted secret exposed in report output or extracted from OS keyring by an unintended process |
+| High | Doctor scanner consistently fails to detect a supported secret type |
+| Medium | Information disclosure that does not directly expose credentials |
+| Low | Minor scanner inaccuracy or edge case with limited real-world impact |
 
 ---
 
 ## Supported Versions
 
-Only the latest release receives security fixes. If you are running an older version, upgrade before reporting.
+Only the latest release receives security fixes.
 
 | Version | Supported |
 |---------|-----------|
