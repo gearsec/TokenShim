@@ -5,8 +5,8 @@
 *.so
 *.dylib
 
-# Specific binary
-tokenshim
+# Specific binary (root-level compiled output)
+/tokenshim
 
 # Test binary, built with `go test -c`
 *.test
@@ -36,3 +36,4 @@ Thumbs.db
 *.swp
 *.swo
 *~
+.claude/
