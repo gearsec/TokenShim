@@ -59,7 +59,9 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          version: v2.1.6
+        env:
+          GOTOOLCHAIN: go1.25.8
 
   build:
     name: Build
