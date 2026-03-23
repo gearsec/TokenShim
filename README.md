@@ -95,52 +95,27 @@ Once complete, the proxy will support:
 
 ## Installation
 
+**macOS (Homebrew)**
+
 ```sh
-# From source
-git clone https://github.com/gearsec/tokenshim.git
-cd tokenshim
-make build
+brew install gearsec/tap/tokenshim
 ```
 
----
+**Linux (curl)**
 
-## Directory Structure
-
-```
-tokenshim/
-├── cmd/
-│   └── tokenshim/      # CLI entrypoint
-│       └── main.go
-├── internal/
-│   ├── cli/            # Cobra command definitions
-│   │   ├── root.go
-│   │   ├── exec.go
-│   │   ├── secrets.go
-│   │   ├── profile.go
-│   │   ├── log.go
-│   │   └── doctor.go   # doctor / doctor check commands
-│   ├── config/         # Shared config manager (viper-backed)
-│   │   ├── item.go
-│   │   └── manager.go
-│   ├── doctor/         # Secret detection engine
-│   │   ├── patterns.go # Compiled regex patterns (OpenAI, AWS, GitHub, etc.)
-│   │   ├── config.go   # doctor.yaml loading and path resolution
-│   │   ├── scanner.go  # File and environment variable scanning
-│   │   └── report.go   # Multi-format report serialization (JSON/YAML/XML/CSV/HTML)
-│   ├── injection/      # In-flight credential injection (in progress)
-│   └── keyring/        # OS keyring integration (Keychain, Secret Service, WCM)
-├── pkg/
-│   ├── proxy/          # Local HTTP/HTTPS proxy engine (in progress)
-│   └── masking/        # Token masking and alias generation (in progress)
-├── .github/
-│   ├── workflows/
-│   └── ISSUE_TEMPLATE/
-├── SECURITY.md
-├── CONTRIBUTING.md
-└── CODE_OF_CONDUCT.md
+```sh
+curl -sSL https://github.com/gearsec/TokenShim/releases/latest/download/tokenshim_$(uname -s)_$(uname -m).tar.gz | tar -xz
+sudo mv tokenshim /usr/local/bin/
 ```
 
----
+**From source**
+
+```sh
+git clone https://github.com/gearsec/TokenShim.git
+cd TokenShim
+go build -o tokenshim ./cmd/tokenshim
+```
+
 
 ## Design Principles
 
