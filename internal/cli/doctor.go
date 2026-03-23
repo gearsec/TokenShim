@@ -33,7 +33,7 @@ Supported output formats: json (default), yaml, xml, csv, html.`,
 	RunE: runDoctorCheck,
 }
 
-func runDoctorCheck(cmd *cobra.Command, _ []string) error {
+func runDoctorCheck(cmd *cobra.Command, _ []string) (err error) {
 	if err := validateDoctorOutputFormat(doctorOutputFormat); err != nil {
 		return err
 	}
@@ -89,16 +89,20 @@ func runDoctorCheck(cmd *cobra.Command, _ []string) error {
 		if createErr != nil {
 			return fmt.Errorf("failed to create export file: %w", createErr)
 		}
-		defer f.Close()
+		defer func() {
+			if cerr := f.Close(); cerr != nil && err == nil {
+				err = cerr
+			}
+		}()
 		out = f
 	}
 
-	if err := doctor.WriteReport(out, report, doctorOutputFormat); err != nil {
+	if err = doctor.WriteReport(out, report, doctorOutputFormat); err != nil {
 		return fmt.Errorf("failed to write report: %w", err)
 	}
 
 	if doctorExportPath != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "Report written to %s\n", doctorExportPath)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Report written to %s\n", doctorExportPath)
 	}
 
 	return nil

@@ -10,8 +10,10 @@ type testNestedConfig struct {
 }
 
 func TestManager_EnvVarLoading(t *testing.T) {
-	os.Setenv("TOKENSHIM_TEST_SOME_FIELD", "test_value")
-	defer os.Unsetenv("TOKENSHIM_TEST_SOME_FIELD")
+	if err := os.Setenv("TOKENSHIM_TEST_SOME_FIELD", "test_value"); err != nil {
+		t.Fatalf("failed to set env var: %v", err)
+	}
+	defer func() { _ = os.Unsetenv("TOKENSHIM_TEST_SOME_FIELD") }()
 
 	m := NewManager()
 

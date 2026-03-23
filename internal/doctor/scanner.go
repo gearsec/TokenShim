@@ -159,7 +159,7 @@ func scanFile(path string) ([]FileFinding, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var findings []FileFinding
 	scanner := bufio.NewScanner(f)
