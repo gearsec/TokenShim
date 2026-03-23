@@ -24,9 +24,10 @@ var execCmd = &cobra.Command{
 
 		if dryRun {
 			fmt.Println("Dry run mode enabled: Will only print the masked environment")
-		} else {
-			// TODO: Start local proxy, set env vars, and run the target command
+			return nil
 		}
+
+		// TODO: Start local proxy, set env vars, and run the target command
 
 		return nil
 	},

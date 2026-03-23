@@ -133,7 +133,7 @@ func expandGlob(pattern string) ([]string, error) {
 	suffix := strings.TrimPrefix(pattern[idx+2:], string(filepath.Separator))
 
 	var matches []string
-	fs.WalkDir(os.DirFS(baseDir), ".", func(path string, d fs.DirEntry, err error) error {
+	if err := fs.WalkDir(os.DirFS(baseDir), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
 		}
@@ -146,7 +146,9 @@ func expandGlob(pattern string) ([]string, error) {
 			matches = append(matches, filepath.Join(baseDir, path))
 		}
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	return matches, nil
 }
